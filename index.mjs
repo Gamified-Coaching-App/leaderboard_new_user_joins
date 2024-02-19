@@ -4,11 +4,54 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 export const handler = async (event) => {
     // cognito trigger/trigger from update in user_id db
+    const {username, user_id } = event.request.userAttributes;
 
-    // new entry created in DB. 
-    // all entries except username set to null or zero. MIGHT NEED TO CHANGE LOGIC FOR ADDING SCORE IN leaderboard_read_event_update_leaderboard
+    // Define the parameters for querying the position_new column
+    const queryParams = {
+        TableName: 'leaderboard',
+        IndexName: 'bucket_id-index', // Assuming an index exists on bucket_id and position_new columns
+        KeyConditionExpression: 'bucket_id = :bucket_id',
+        ExpressionAttributeValues: {
+            ':bucket_id': -1
+        },
+        ScanIndexForward: false, // Sort in descending order
+        Limit: 1 // Limit to 1 result to get the highest position_new
+    };
 
+    try {
+        // Query the leaderboard table to find the highest position_new
+        const queryResult = await dynamoDb.query(queryParams).promise();
 
+        // Extract the highest position_new value
+        let positionNew = 1; // Default value if no existing entries
+        if (queryResult.Count > 0) {
+            positionNew = parseInt(queryResult.Items[0].position_new.N) + 1;
+        }
 
-    return;
+        // Define the parameters for adding a new row
+        const putParams = {
+            TableName: 'leaderboard',
+            Item: {
+                'user_id': user_id, // Assuming user_id is the Cognito user ID
+                'bucket_id': -1,
+                // 'position_old': { NULL: true },
+                'position_new': positionNew.toString(),
+                'aggregate_season': 0,
+                'endurance_season': 0,
+                'strength_season': 0,
+                'username': username
+            },
+            ConditionExpression: 'attribute_not_exists(user_id)' // Check if user_id does not already exist
+        };
+
+        // Add the new row to the leaderboard table
+        await dynamoDb.putItem(putParams).promise();
+
+        console.log('Successfully added new user to leaderboard');
+
+    } catch (err) {
+        console.error('Error adding new user to leaderboard:', err);
+    }
+
+    return event;
 }
