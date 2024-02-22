@@ -46,7 +46,7 @@ export const handler = async (event) => {
         };
 
         // Add the new row to the leaderboard table
-        await dynamoDb.putItem(putParams).promise();
+        await dynamoDb.put(putParams).promise();
 
         console.log('Successfully added new user to leaderboard');
 
