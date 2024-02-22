@@ -4,7 +4,8 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 export const handler = async (event) => {
     // cognito trigger/trigger from update in user_id db
-    const {username, user_id } = event.request.userAttributes;
+    const user_id = event.request.userAttributes.sub;
+    //const username = event.request.userAttributes;
 
     // Define the parameters for querying the position_new column
     const queryParams = {
@@ -39,7 +40,7 @@ export const handler = async (event) => {
                 'aggregate_season': 0,
                 'endurance_season': 0,
                 'strength_season': 0,
-                'username': username
+                'username': "username"
             },
             ConditionExpression: 'attribute_not_exists(user_id)' // Check if user_id does not already exist
         };
