@@ -13,7 +13,7 @@ export const handler = async (event) => {
         IndexName: 'bucket_id-index', // Assuming an index exists on bucket_id and position_new columns
         KeyConditionExpression: 'bucket_id = :bucket_id',
         ExpressionAttributeValues: {
-            ':bucket_id': -1
+            ':bucket_id': String(-1)
         },
         ScanIndexForward: false, // Sort in descending order
         Limit: 1 // Limit to 1 result to get the highest position_new
@@ -26,7 +26,7 @@ export const handler = async (event) => {
         // Extract the highest position_new value
         let positionNew = 1; // Default value if no existing entries
         if (queryResult.Count > 0) {
-            positionNew = parseInt(queryResult.Items[0].position_new.N) + 1;
+            positionNew = parseInt(queryResult.Items[0].position_new) + 1;
         }
 
         // Define the parameters for adding a new row
@@ -34,9 +34,9 @@ export const handler = async (event) => {
             TableName: 'leaderboard',
             Item: {
                 'user_id': user_id, // Assuming user_id is the Cognito user ID
-                'bucket_id': -1,
+                'bucket_id': String(-1),
                 // 'position_old': { NULL: true },
-                'position_new': positionNew.toString(),
+                'position_new': positionNew,
                 'aggregate_season': 0,
                 'endurance_season': 0,
                 'strength_season': 0,
