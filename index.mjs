@@ -37,7 +37,7 @@ export const handler = async (event) => {
                 'bucket_id': String(-1),
                 // 'position_old': { NULL: true },
                 'position_new': positionNew,
-                'aggregate_season': 0,
+                'aggregate_skills_season': 0,
                 'endurance_season': 0,
                 'strength_season': 0,
                 'username': "username"
