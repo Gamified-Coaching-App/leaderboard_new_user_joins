@@ -6,6 +6,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 export const handler = async (event) => {
     // cognito trigger/trigger from update in user_id db
     const user_id = event.request.userAttributes.sub;
+    console.log("User id:", user_id);
     //const username = event.request.userAttributes;
 
     // Define the parameters for querying the position_new column
@@ -48,7 +49,7 @@ export const handler = async (event) => {
 
         // Add the new row to the leaderboard table
         await dynamoDb.put(putParams).promise();
-
+        console.log('Successfully added new user to leaderboard');
         try {
             await triggerChallengesNewUserGeneration(user_id);
             console.log(`Challenges generation triggered for new user with ID: ${user_id}`);
