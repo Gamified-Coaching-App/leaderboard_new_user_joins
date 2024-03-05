@@ -1,4 +1,5 @@
 import AWS from 'aws-sdk';
+import https from 'https';
 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
