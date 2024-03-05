@@ -6,7 +6,7 @@ export const handler = async (event) => {
     // cognito trigger/trigger from update in user_id db
     const user_id = event.request.userAttributes.sub;
     //const username = event.request.userAttributes;
-
+    console.log(user_id);
     // Define the parameters for querying the position_new column
     const queryParams = {
         TableName: 'leaderboard',
@@ -22,7 +22,7 @@ export const handler = async (event) => {
     try {
         // Query the leaderboard table to find the highest position_new
         const queryResult = await dynamoDb.query(queryParams).promise();
-
+        console.log(queryResult);
         // Extract the highest position_new value
         let positionNew = 1; // Default value if no existing entries
         if (queryResult.Count > 0) {
