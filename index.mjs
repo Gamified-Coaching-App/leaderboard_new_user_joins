@@ -1,5 +1,6 @@
 import AWS from 'aws-sdk';
-import https from 'https';
+import { triggerChallengesNewUserGeneration } from './utils.mjs';
+// import https from 'https';
 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
@@ -22,7 +23,7 @@ export const handler = async (event) => {
     };
 
     try {
-        // Query the leaderboard table to find the highest position_new
+        // Query the leaderboard table to find the highest position_new in bucket -1
         const queryResult = await dynamoDb.query(queryParams).promise();
         console.log(queryResult);
         // Extract the highest position_new value
@@ -48,7 +49,13 @@ export const handler = async (event) => {
         };
 
         // Add the new row to the leaderboard table
-        await dynamoDb.put(putParams).promise();
+        try {
+            await dynamoDb.put(putParams).promise();
+            console.log("No error!");
+        } catch (error) {
+            console.log('User already exists in the leaderboard');
+            return event;
+        }
 
         console.log('Successfully added new user to leaderboard');
         try {
@@ -63,53 +70,4 @@ export const handler = async (event) => {
     }
 
     return event;
-}
-
-async function triggerChallengesNewUserGeneration(userId) {
-    console.log(`Triggering challenge generation for new user: ${userId}`);
-
-    const challengesApiUrl = 'https://jkipopyatb.execute-api.eu-west-2.amazonaws.com/dev/challenge-creation-new-user';
-
-    // Prepare the payload
-    const apiPayload = {
-        user_id: userId, 
-        season_id: `new_user_season`
-    };
-
-    // Convert the payload to a string
-    const dataString = JSON.stringify(apiPayload);
-
-    // Define the options for the HTTPS request
-    const options = {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(dataString),
-        },
-    };
-
-    // Return a new Promise that resolves or rejects based on the API call outcome
-    return new Promise((resolve, reject) => {
-        const req = https.request(challengesApiUrl, options, (res) => {
-            let response = '';
-
-            res.on('data', (chunk) => {
-                response += chunk;
-            });
-
-            res.on('end', () => {
-                console.log("Response from challenges_new_user_generation:", response);
-                resolve(response); // Resolve the promise with the response
-            });
-        });
-
-        req.on('error', (e) => {
-            console.error("Error calling challenges_new_user_generation:", e);
-            reject(e); // Reject the promise on error
-        });
-
-        // Send the request with the payload
-        req.write(dataString);
-        req.end();
-    });
 }

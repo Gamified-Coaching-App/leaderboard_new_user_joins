@@ -1,65 +1,87 @@
-import { handler } from '../index.mjs';
+import { handler } from '../index.mjs'; // Assuming the file is named 'handler.js'
+import AWS from 'aws-sdk';
+import { triggerChallengesNewUserGeneration } from '../utils.mjs';
 
-// Mock AWS SDK
+// Resetting modules to ensure a clean mock state
+beforeEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+});
+
+// Mock utils library
+jest.mock('../utils.mjs', () => ({
+    triggerChallengesNewUserGeneration: jest.fn()
+}));
+
+// Mock AWS library
 jest.mock('aws-sdk', () => {
-    const mockDocumentClient = {
-        query: jest.fn(),
-        put: jest.fn(),
-        promise: jest.fn(),
-    };
+    const queryMock = jest.fn();
+    const putMock = jest.fn();
+
     return {
         DynamoDB: {
-            DocumentClient: jest.fn(() => mockDocumentClient),
+            DocumentClient: jest.fn(() => ({
+                query: jest.fn((params) => ({ promise: () => queryMock(params) })),
+                put: jest.fn((params) => ({ promise: () => putMock(params) }))
+            })),
         },
+        queryMock,
+        putMock
     };
 });
 
-describe('handler function', () => {
-    let event;
+describe('handler function tests', () => {
+    // Mock event object
+    const mockEvent = {
+        request: {
+            userAttributes: {
+                sub: 'testUserId',
+                preferred_username: 'testUsername'
+            }
+        }
+    };
 
-    beforeEach(() => {
-        event = {
-            request: {
-                userAttributes: {
-                    sub: 'test_user_id',
-                },
+    it('should add new user to leaderboard successfully', async () => {
+        // Mock DynamoDB query response (empty result)
+        AWS.queryMock.mockResolvedValueOnce({ Count: 0 });
+
+        // Mock DynamoDB put response
+        AWS.putMock.mockResolvedValueOnce({});
+
+        triggerChallengesNewUserGeneration.mockResolvedValueOnce();
+
+        // Call the handler function
+        await handler(mockEvent);
+
+        // Assert that DynamoDB query method is called with correct params
+        expect(AWS.queryMock).toHaveBeenCalledTimes(1);
+        expect(AWS.queryMock).toHaveBeenCalledWith({
+            TableName: 'leaderboard',
+            IndexName: 'bucket_id-index',
+            KeyConditionExpression: 'bucket_id = :bucket_id',
+            ExpressionAttributeValues: { ':bucket_id': '-1' },
+            ScanIndexForward: false,
+            Limit: 1
+        });
+
+        // Assert that DynamoDB put method is called with correct params
+        expect(AWS.putMock).toHaveBeenCalledTimes(1);
+        expect(AWS.putMock).toHaveBeenCalledWith({
+            TableName: 'leaderboard',
+            Item: {
+                'user_id': 'testUserId',
+                'bucket_id': '-1',
+                'position_new': 1,
+                'aggregate_skills_season': 0,
+                'endurance_season': 0,
+                'strength_season': 0,
+                'username': 'testUsername'
             },
-        };
-    });
-
-    afterEach(() => {
-        jest.clearAllMocks();
-    });
-
-    it('should add a new user to the leaderboard', async () => {
-        const mockQueryResult = {
-            Count: 0,
-            Items: [],
-        };
-
-        const mockPutResult = {};
-
-        const dynamoDbMock = new AWS.DynamoDB.DocumentClient();
-        dynamoDbMock.query.mockReturnValueOnce({ promise: () => Promise.resolve(mockQueryResult) });
-        dynamoDbMock.put.mockReturnValueOnce({ promise: () => Promise.resolve(mockPutResult) });
-
-        await handler(event);
-
-        expect(dynamoDbMock.query).toHaveBeenCalledWith(expect.any(Object));
-        expect(dynamoDbMock.put).toHaveBeenCalledWith(expect.any(Object));
-        expect(console.log).toHaveBeenCalledWith('Successfully added new user to leaderboard');
-    });
-
-    it('should handle error when adding new user to the leaderboard', async () => {
-        const errorMessage = 'Test error message';
-        const error = new Error(errorMessage);
-
-        const dynamoDbMock = new AWS.DynamoDB.DocumentClient();
-        dynamoDbMock.query.mockRejectedValueOnce(error);
-
-        await expect(handler(event)).rejects.toThrowError(errorMessage);
-
-        expect(console.error).toHaveBeenCalledWith('Error adding new user to leaderboard:', error);
+            ConditionExpression: 'attribute_not_exists(user_id)'
+        });
+        
+        // Assert that no challenges are created
+        expect(triggerChallengesNewUserGeneration).toHaveBeenCalledTimes(1);
     });
 
 });
